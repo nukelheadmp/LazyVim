@@ -1,31 +1,34 @@
 local M = {}
 
 function M.export_colors()
-  -- Try to get theme-specific colors (e.g., tokyonight)
-  local colors = {}
-  local theme = vim.g.colors_name or "tokyonight"
-  if theme == "tokyonight" then
-    colors = require("tokyonight.colors").setup()
-  elseif theme == "catppuccin" then
-    colors = require("catppuccin.palettes").get_palette()
-  -- Add other themes as needed
-  else
-    colors = { bg_dark = "#1a1b26", fg = "#a9b1d6", cyan = "#7dcfff", green = "#9ece6a", gray = "#6c7086" }
+  -- Helper to get hex from highlight group
+  local get_hl = function(name)
+    local hl = vim.api.nvim_get_hl(0, { name = name })
+    return {
+      fg = hl.fg and string.format("#%06x", hl.fg) or nil,
+      bg = hl.bg and string.format("#%06x", hl.bg) or nil,
+    }
   end
 
-  -- Map to LazyVim-like names, ensuring lualine-like usage
+  -- Get lualine section colors (e.g., a=mode, b=git, c=filename)
+  local lualine_a = get_hl("lualine_a_normal") -- Mode section
+  local lualine_b = get_hl("lualine_b_normal") -- Git section
+  local lualine_c = get_hl("lualine_c_normal") -- Filename/path
+  local statusline = get_hl("StatusLine") -- General status bg
+
+  -- Map to our needs, prioritizing lualine’s rendered colors
   local color_map = {
-    bg_dark = colors.bg_dark or "#1a1b26", -- Main background
-    fg = colors.fg or "#a9b1d6", -- Default text
-    cyan = colors.cyan or "#7dcfff", -- Accent (e.g., mode, session)
-    green = colors.green or "#9ece6a", -- Git or secondary accent
-    gray = colors.gray or "#6c7086", -- Subtle text
+    bg_dark = statusline.bg or "#1f1f28", -- Status line bg
+    fg = lualine_c.fg or "#c8d3e0", -- Path/text fg
+    cyan = lualine_a.fg or "#86e1fc", -- Mode/session fg
+    green = lualine_b.fg or "#a4e57e", -- Git fg
+    gray = get_hl("Comment").fg or "#828bb8", -- Subtle text
   }
 
   -- Write to shell file
   local file = io.open(os.getenv("HOME") .. "/.lazyvim_colors.sh", "w")
   if file then
-    file:write("# Auto-generated LazyVim colors\n")
+    file:write("# Auto-generated LazyVim colors for " .. (vim.g.colors_name or "unknown") .. "\n")
     for name, value in pairs(color_map) do
       file:write(string.format("export LAZYVIM_%s='%s'\n", name:upper(), value))
     end
